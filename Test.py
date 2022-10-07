@@ -1,5 +1,6 @@
 #Contactenates two excel files or sheets and create a new sheet
 import string
+import os
 from tempfile import tempdir
 import pandas as pds
 import numpy as np
@@ -20,8 +21,25 @@ import datetime
 # https://likegeeks.com/python-gui-examples-tkinter-tutorial/
 feedback_str = []
 version_no = "T 1.0"
+debug_flag = 0;#Custom int variable. For testing, to print statements with PRINT ,set it to 1
+    
 
-#Defintion of Log function
+#*******************************Function to Check column Existence******************************************
+def doesColumnExists(d_frame, col):
+   if col in d_frame:
+      if(debug_flag == 1):
+        print("Column", col, "exists in the DataFrame.")
+      temp_str = "Column "+ col + " exists in the DataFrame "
+      writeToLog(temp_str)
+      return True
+   else:
+      if(debug_flag == 1):
+        print("Column", col, "does not exists in the DataFrame.")
+      temp_str = "Column "+ col + " doesn't exists in the DataFrame "
+      writeToLog(temp_str)
+      return False
+
+#*********************************Defintion of Log function*********************************
 def writeToLog(message):
     f = open("log.txt", "a")
     # ct stores current time
@@ -30,7 +48,7 @@ def writeToLog(message):
     print(message, file=f)
     f.close()
 
-#Defintion of  def displayMessage function 
+#*********************************Defintion of  def displayMessage function 
 def displayMessage(title,message):
     messagebox.showinfo(title,message)
 
@@ -48,6 +66,7 @@ def updateProgress(message_update,bar_value):
 #*************************************Beginning of Function runTool()******************************************
 def runTool():
     # get the start time of program
+
     temp_str = "-------------------Version "+version_no+" (TRIAL VERSION)-------------------------"
     writeToLog(temp_str)
     temp_str = "-------------------RUN TOOL clicked-------------------------"
@@ -55,12 +74,40 @@ def runTool():
     start_time = time.time()
     file1 =('Vendors Consolidated.xlsx')
     file2 =('Accounts.xlsx')
-    debug_flag = 0;#Custom int variable. For testing, to print statements with PRINT ,set it to 1
-
+            
     try:
         #Concatenate from two sheets / files
         vendors_file = pds.read_excel(file1)
         accounts_file = pds.read_excel(file2)
+
+        cols_to_check = ['TRUCK NO','DC NO', 'DATE']
+        cols_matched_vendors = 0
+        cols_matched_accounts = 0
+        print("\n List of Cols to check are ",cols_to_check)
+        for i in range(len(cols_to_check)):
+            if(doesColumnExists(vendors_file,cols_to_check[i])):
+                cols_matched_vendors = cols_matched_vendors + 1
+        for i in range(len(cols_to_check)):
+            if(doesColumnExists(accounts_file,cols_to_check[i])):
+                cols_matched_accounts = cols_matched_accounts + 1
+        if(cols_matched_vendors == (len(cols_to_check))):
+            temp_str = "All the keys present in Vendors Consolidated"
+            writeToLog(temp_str)
+        else:
+            temp_str = "Some mandatory keys are missing in Vendors Consolidated "
+            print("\n",temp_str,"Matched: ",cols_matched_vendors)
+            displayMessage("Error",temp_str)
+            return
+        if(cols_matched_accounts == (len(cols_to_check))):
+            print("\n all the keys present in Accounts ")
+            temp_str = "All the keys present in Accounts"
+            writeToLog(temp_str)
+        else:
+            temp_str = "Some mandatory keys are missing in Accounts"
+            print("\n",temp_str,"Matched: ",cols_matched_accounts)
+            displayMessage("Error",temp_str)
+            return
+        
         joinedData = pds.concat([vendors_file, accounts_file])
         temp_str = "Input files read successfully"
         writeToLog(temp_str)
@@ -70,6 +117,7 @@ def runTool():
         displayMessage("Error",str(err_msg))
         temp_str = "Error "+str(err_msg)
         writeToLog(temp_str)
+        return
 
     if(debug_flag == 1):
         print("\n Size of Vendors File: ",vendors_file.shape," with Rows: ",vendors_file.shape[0]," Columns: ",vendors_file.shape[1])
@@ -293,6 +341,9 @@ bar.grid(column=0, row=3)
 
 run_feedback = Label(window, text=" ", font=("Arial Bold", 15,))
 run_feedback.grid(column=0, row=4,padx=15)
+working_dir = os.getcwd()
+location = "Put input files in location: "+working_dir
+updateProgress(location,5)
 
 lbl_company_name = Label(window, text="Tool developed by Rainscent Tech Pvt. Ltd. ", font=("Arial Bold", 15,))
 lbl_company_name.grid(column=0, row=5)
