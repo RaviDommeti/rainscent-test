@@ -343,7 +343,7 @@ run_feedback = Label(window, text=" ", font=("Arial Bold", 15,))
 run_feedback.grid(column=0, row=4,padx=15)
 working_dir = os.getcwd()
 location = "Put input files in location: "+working_dir
-updateProgress(location,5)
+updateProgress(location,0)
 
 lbl_company_name = Label(window, text="Tool developed by Rainscent Tech Pvt. Ltd. ", font=("Arial Bold", 15,))
 lbl_company_name.grid(column=0, row=5)
