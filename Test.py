@@ -74,6 +74,9 @@ def runTool():
     start_time = time.time()
     file1 =('Vendors Consolidated.xlsx')
     file2 =('Accounts.xlsx')
+    output_path = 'Output'
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
             
     try:
         #Concatenate from two sheets / files
@@ -192,8 +195,8 @@ def runTool():
     missing_value_file.drop(missing_value_file[missing_value_file['Errors'] == ""].index, inplace = True)
     if(debug_flag == 1):
         print("\n",missing_value_file)
-
-    missing_value_file.to_excel("Vendor Missing Values.xlsx")
+    
+    missing_value_file.to_excel("Output/Vendor Missing Values.xlsx")
     temp_str = "Vendor Missing Values.xlsx created"
     writeToLog(temp_str)
     updateProgress("\nFile with name Vendor Missing Values.xlsx created",30)
@@ -261,7 +264,7 @@ def runTool():
     joinedData = joinedData[['DATE','DC NO','TRUCK NO','Accepted Qty_Vendors','Accepted Qty_Accounts','ACC Difference','Received Qty_Vendors','Received Qty_Accounts','REC Difference']]
     #joinedData = joinedData.loc[(joinedData["ACC Difference"] == "All OK" and joinedData["ACC Difference"] == "All OK") ]
     #joinedData.drop(joinedData[joinedData['ACC Difference'] == "All OK" and joinedData['REC Difference'] == "All OK"].index)
-    joinedData.to_excel("Account Errors.xlsx")
+    joinedData.to_excel("Output/Account Errors.xlsx")
     temp_str = "Account Errors.xlsx created"
     writeToLog(temp_str)
     updateProgress("\nFile created with name Account Errors.xlsx",70)
@@ -288,7 +291,7 @@ def runTool():
     finalData['GRAND TOTAL'] = finalData['AMOUNT'] + finalData['TAX']
     finalData['BALANCE'] = finalData['GRAND TOTAL'] - (finalData['T PAID'] + finalData['FRT'])
 
-    finalData.to_excel("Account Summary.xlsx")
+    finalData.to_excel("Output/Account Summary.xlsx")
     temp_str = "Account Summary.xlsx created"
     writeToLog(temp_str) 
     updateProgress("\nFile with name Account Summary.xlsx is created",100)
