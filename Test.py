@@ -18,11 +18,20 @@ import time
 import webbrowser
 import datetime
 
+#Important Notes
+# Rows in PAYMENTS = Rows in Account Errors 
+#                    + Rows in Remaining account records not matched with Vendors and not in Account Errors
+#                    + Rows matched with Vendor FINAL (Acc. Summary)
+
 # https://likegeeks.com/python-gui-examples-tkinter-tutorial/
 feedback_str = []
 version_no = "T 1.0"
-debug_flag = 0;#Custom int variable. For testing, to print statements with PRINT ,set it to 1
-    
+debug_flag = 1;#Custom int variable. For testing, to print statements with PRINT ,set it to 1
+
+#*******************************Function to Print Dataframes******************************************
+def printDataFrame(dataframe, dataframe_name):
+    print("\n****************",dataframe_name,"*******************\n",dataframe)
+    print("\n******************************************************\n")
 
 #*******************************Function to Check column Existence******************************************
 def doesColumnExists(d_frame, col):
@@ -72,7 +81,7 @@ def runTool():
     temp_str = "-------------------RUN TOOL clicked-------------------------"
     writeToLog(temp_str)
     start_time = time.time()
-    file1 =('Vendors Consolidated.xlsx')
+    file1 =('Vendors Consolidated New.xlsx')
     file2 =('Accounts.xlsx')
     output_path = 'Output'
     if not os.path.exists(output_path):
@@ -80,8 +89,22 @@ def runTool():
             
     try:
         #Concatenate from two sheets / files
-        vendors_file = pds.read_excel(file1)
+        vendors_file_main = pds.read_excel(file1)
         accounts_file = pds.read_excel(file2)
+
+        #Renaming column names in Vendors FINAL to match names in PAYMENTS
+        vendors_file = vendors_file_main.rename(columns = {'Truck No' : 'TRUCK NO','GR Date' : 'DATE','SUP DN No':'DC NO','ACC Qty' : 'ACC.','DED Qty' : 'DED.'},inplace = False)
+        if(debug_flag == 1):
+            print("\n Column names after renaming Vendors FINAL\n",vendors_file)
+
+        #Calculate REC Qty. REC. = ACC. + DED.
+        vendors_file['REC.'] = vendors_file['ACC.'] + vendors_file['DED.']
+        vendors_file.to_excel("Output/Vendor FINAL New.xlsx")
+        temp_str = "New Vendors FINAL created"
+        writeToLog(temp_str)
+        updateProgress("\nNew Vendors FINAL created with values REC.",10)
+        if(debug_flag == 1):
+            print("\n Vendors file after REC. calculation\n",vendors_file)
 
         cols_to_check = ['TRUCK NO','DC NO', 'DATE']
         cols_matched_vendors = 0
@@ -94,10 +117,10 @@ def runTool():
             if(doesColumnExists(accounts_file,cols_to_check[i])):
                 cols_matched_accounts = cols_matched_accounts + 1
         if(cols_matched_vendors == (len(cols_to_check))):
-            temp_str = "All the keys present in Vendors Consolidated"
+            temp_str = "All the keys present in Vendor FINAL"
             writeToLog(temp_str)
         else:
-            temp_str = "Some mandatory keys are missing in Vendors Consolidated "
+            temp_str = "Some mandatory keys are missing in Vendor FINAL "
             print("\n",temp_str,"Matched: ",cols_matched_vendors)
             displayMessage("Error",temp_str)
             return
@@ -153,16 +176,16 @@ def runTool():
 
 
 
-    #Storing column names of Vendors consolidated
+    #Storing column names of Vendor FINAL
     cols_list = list(vendors_file.columns)
     if(debug_flag == 1):
-        print("\n Vendors Consolidated Columns: ",cols_list,"\n")
+        print("\n Vendor FINAL Columns: ",cols_list,"\n")
 
 
-    #Finding number of columns in Vendors consolidated starts from 1
+    #Finding number of columns in Vendor FINAL starts from 1
     total_cols_vendors = len(cols_list)
     if(debug_flag == 1):
-        print("\n Number of Columns in Vendors Consolidated",total_cols_vendors,"\n")
+        print("\n Number of Columns in Vendor FINAL",total_cols_vendors,"\n")
 
     # Duplicating vendors file
     dup_vendors_file = vendors_file
@@ -203,8 +226,9 @@ def runTool():
 
     try:
         #Please note vendors_file now contains only rows which have values in Error column. vendors_file cannot be used for further processing
-        #Create a new reference to the Vendors Consolidated file to process the original file
-        vendors_file = pds.read_excel("Vendors Consolidated.xlsx")
+        #Create a new reference to the Vendor FINAL New(with REC calculated value) file to process the original file
+        vendors_file = pds.read_excel("Output/Vendor FINAL New.xlsx")
+        vendors_final_new_shape = vendors_file.shape[0]
         
     except Exception as err_msg:
         print("\nError reading files: "+str(err_msg))
@@ -212,21 +236,25 @@ def runTool():
         temp_str = "Exception raised: "+str(err_msg)
         writeToLog(temp_str)
     
-    #Removing rows with null values in Vendors Consolidated
+    #Removing rows with null values in Vendor FINAL
     vendors_file = vendors_file.dropna(how='any')
     #Converting DC NO to String from int. Failure to do this is resulting in deletion of values
     # when used with str.strip()
     vendors_file = vendors_file.astype({"DC NO": str})
 
     # Removing spaces before and after values
+    vendors_file['DATE'] = vendors_file['DATE'].str.strip()
     vendors_file['DC NO'] = vendors_file['DC NO'].str.strip()
     vendors_file['TRUCK NO'] = vendors_file['TRUCK NO'].str.strip()
+
     # Removing spaces in middle of values
+    vendors_file['DATE'] = vendors_file['DATE'].str.replace(" ","")
     vendors_file['DC NO'] = vendors_file['DC NO'].str.replace(" ","")
     vendors_file['TRUCK NO'] = vendors_file['TRUCK NO'].str.replace(" ","")
 
     if(debug_flag == 1):
         print("\n","Vendors File Cleaned ",vendors_file.shape,"\n")
+        print("\nVendors File after cleaning\n",vendors_file)
     
     temp_str = "Vendor files cleaned"
     writeToLog(temp_str)
@@ -240,18 +268,30 @@ def runTool():
     # when used with str.strip()
     accounts_file = accounts_file.astype({"DC NO": str})
     # Removing spaces before and after values
+    accounts_file['DATE'] = accounts_file['DATE'].str.strip()
     accounts_file['DC NO'] = accounts_file['DC NO'].str.strip()
     accounts_file['TRUCK NO'] = accounts_file['TRUCK NO'].str.strip()
     # Removing spaces in middle of values
+    accounts_file['DATE'] = accounts_file['DATE'].str.replace(" ","")
     accounts_file['DC NO'] = accounts_file['DC NO'].str.replace(" ","")
     accounts_file['TRUCK NO'] = accounts_file['TRUCK NO'].str.replace(" ","")
+
+    #Connverting DATE column to proper date Format
+    vendors_file['DATE'] = pds.to_datetime(vendors_file['DATE'])
+    vendors_file['DATE'] = vendors_file['DATE'].dt.strftime('%d-%m-%Y')
+    accounts_file['DATE'] = pds.to_datetime(accounts_file['DATE'])
+    accounts_file['DATE'] = accounts_file['DATE'].dt.strftime('%d-%m-%Y')
+
     if(debug_flag == 1):
-        print("\nAccounts File ",accounts_file,"\n")
-        print("\nData types of Columns ",accounts_file.dtypes)
-        print("\n Data Info of Accounts File\n",accounts_file.info())
+        print("\n**********BEFORE MERGE FOR ACC ERRORS*****************\n")
+        printDataFrame(vendors_file,"Vendors File")
+        printDataFrame(accounts_file,"Accounts File")
+        print("\nData type of Vendors File\n",vendors_file.dtypes)
+        print("\n**************************************\n")
+        print("\nData type of Accounts File\n",accounts_file.dtypes)
 
     #Merge Tables
-    joinedData = vendors_file.merge(accounts_file, how="inner", on=['DC NO','TRUCK NO','DATE'],suffixes=('_Vendors', '_Accounts'))
+    joinedData = vendors_file.merge(accounts_file, how="inner", on=['DC NO','TRUCK NO','DATE'],suffixes=('_Vendors', '_Accounts'),indicator=True)
     if(debug_flag == 1):
         print("\n Joined Data",joinedData)
     #joinedData.to_excel("Accounts Summary.xlsx")
@@ -259,20 +299,68 @@ def runTool():
 
 
 
-    joinedData['REC Difference'] = np.where((joinedData['Received Qty_Vendors'] != joinedData['Received Qty_Accounts']), joinedData['Received Qty_Vendors'] - joinedData['Received Qty_Accounts'], "All OK")
-    joinedData['ACC Difference'] = np.where((joinedData['Accepted Qty_Vendors'] != joinedData['Accepted Qty_Accounts']), joinedData['Accepted Qty_Vendors'] - joinedData['Accepted Qty_Accounts'], "All OK")
-    joinedData = joinedData[['DATE','DC NO','TRUCK NO','Accepted Qty_Vendors','Accepted Qty_Accounts','ACC Difference','Received Qty_Vendors','Received Qty_Accounts','REC Difference']]
+    joinedData['REC Difference'] = np.where((joinedData['REC._Vendors'] != joinedData['REC._Accounts']), joinedData['REC._Vendors'] - joinedData['REC._Accounts'], 0)
+    joinedData['ACC Difference'] = np.where((joinedData['ACC._Vendors'] != joinedData['ACC._Accounts']), joinedData['ACC._Vendors'] - joinedData['ACC._Accounts'], 0)
+    #joinedData_filtered = joinedData[(joinedData['REC Difference'] > 0) & (joinedData['ACC Difference'] > 0)]
+    joinedData_filtered = joinedData[((joinedData['REC Difference'] > 0) & (joinedData['ACC Difference'] > 0)) | (joinedData['REC Difference'] == 0) & (joinedData['ACC Difference'] != 0) | (joinedData['REC Difference'] != 0) & (joinedData['ACC Difference'] == 0)]
+    #joinedData = joinedData[['DATE','DC NO','TRUCK NO','ACC._Vendors','ACC._Accounts','ACC Difference','REC._Vendors','REC._Accounts','REC Difference']]
+    joinedData_filtered = joinedData_filtered[['DATE','DC NO','TRUCK NO','ACC._Vendors','ACC._Accounts','ACC Difference','REC._Vendors','REC._Accounts','REC Difference']]
+    
+    #anti_join = accounts_remaining[~(accounts_remaining._merge == 'both')]
+
     #joinedData = joinedData.loc[(joinedData["ACC Difference"] == "All OK" and joinedData["ACC Difference"] == "All OK") ]
     #joinedData.drop(joinedData[joinedData['ACC Difference'] == "All OK" and joinedData['REC Difference'] == "All OK"].index)
-    joinedData.to_excel("Output/Account Errors.xlsx")
+    #joinedData.to_excel("Output/Account Errors.xlsx")
+    joinedData_filtered.to_excel("Output/Account Errors.xlsx")
     temp_str = "Account Errors.xlsx created"
     writeToLog(temp_str)
     updateProgress("\nFile created with name Account Errors.xlsx",70)
 
+    if(debug_flag == 1):
+        print("\n**********BEFORE MERGE FOR ACC SUMMARY*****************\n")
+        printDataFrame(vendors_file,"Vendors File")
+        printDataFrame(accounts_file,"Accounts File")
+        print("\nData type of Vendors File\n",vendors_file.dtypes)
+        print("\n**************************************\n")
+        print("\nData type of Accounts File\n",accounts_file.dtypes)
+
     try:
-        finalData = vendors_file.merge(accounts_file, how="inner", on=['DC NO','TRUCK NO','DATE','Received Qty','Accepted Qty'])
+        #accounts_file = accounts_file.astype({"ACC.": float})
+        convert_dict = {'ACC.': float,
+                'REC.': float
+                }
+        vendors_file = vendors_file.astype(convert_dict)
+        convert_dict = {'ACC.': float,
+                'REC.': float
+                }
+        accounts_file = accounts_file.astype(convert_dict)
+        printDataFrame(vendors_file,"Vendors File")
+        printDataFrame(accounts_file,"Accounts File")
+        
+        finalData = vendors_file.merge(accounts_file, how="inner", on=['DC NO','TRUCK NO','DATE','REC.','ACC.'])
         finalData = finalData.replace(np.nan,0)
         temp_str = "Accounts vs Vendors merge successful"
+
+        accounts_remaining = vendors_file.merge(accounts_file, how = 'right', on=['DC NO','TRUCK NO','DATE'], suffixes=('_Vendors', '_Accounts'),indicator = True)
+        #anti_join = accounts_remaining[~(accounts_remaining._merge == 'both')].drop('_merge', axis = 1)
+        anti_join = accounts_remaining[~(accounts_remaining._merge == 'both')]
+        anti_join = anti_join.replace(np.nan,0)
+        anti_join['AMOUNT'] = anti_join['ACC._Accounts'] * anti_join['PRICE']
+        anti_join['GRAND TOTAL'] = anti_join['AMOUNT'] + anti_join['TAX']
+        anti_join['BALANCE'] = anti_join['GRAND TOTAL'] - (anti_join['T PAID'] + anti_join['FRT.'])
+        #anti_join['_merge'] = anti_join['_merge'].str.replace("left_only","Vendors Only")
+        anti_join['_merge'] = anti_join['_merge'].str.replace("right_only","Acccounts Only")
+        anti_join.to_excel("Output/Accounts Remaining.xlsx")
+        if(debug_flag == 1):
+            print("\n***************** ROWS SUMMARY OF TABLES *********************")
+            print("\nRows in Vendors Final New: ", vendors_final_new_shape) #This value already assigned above
+            print("\nRows in Vendors Final Missing Values: ", missing_value_file.shape[0])
+            print("\nRows in Accounts: ", accounts_file.shape[0])
+            print("\nRows in Account Errors: ", joinedData_filtered.shape[0])
+            print("\nRows in Accounts Summary: ",finalData.shape[0])
+            print("\nRows in Accounts Remaining: ",anti_join.shape[0] )
+            print("\nRows in Accounts = Rows in Account Errors + Rows not matched but remaining in Accounts and not in Rows Errors + Rows mathced(Acc. Summary)")
+            print("\ni.e ",accounts_file.shape[0]," = ",joinedData_filtered.shape[0]," + ",anti_join.shape[0]," + ",finalData.shape[0])
         writeToLog(temp_str)
         updateProgress("\nReading both input files completed",10)
     except Exception as err_msg:
@@ -282,14 +370,13 @@ def runTool():
         writeToLog(temp_str)
 
     if(debug_flag == 1):
-        print("\nAccounts Summary  ",finalData,"\n")
+        printDataFrame(finalData,"Accounts Summary Before Calculation")
 
     updateProgress("\nCalculating values....",90)
 
-    finalData['AMOUNT'] = finalData['Accepted Qty'] * finalData['PRICE']
-    finalData['TAX'] = (3/100) * finalData['AMOUNT']
+    finalData['AMOUNT'] = finalData['ACC.'] * finalData['PRICE']
     finalData['GRAND TOTAL'] = finalData['AMOUNT'] + finalData['TAX']
-    finalData['BALANCE'] = finalData['GRAND TOTAL'] - (finalData['T PAID'] + finalData['FRT'])
+    finalData['BALANCE'] = finalData['GRAND TOTAL'] - (finalData['T PAID'] + finalData['FRT.'])
 
     finalData.to_excel("Output/Account Summary.xlsx")
     temp_str = "Account Summary.xlsx created"
@@ -297,7 +384,7 @@ def runTool():
     updateProgress("\nFile with name Account Summary.xlsx is created",100)
     
     if(debug_flag == 1):
-        print("\nAccounts Summary  ",finalData,"\n")
+        printDataFrame(finalData,"Accounts Summary Before Calculation")
         print("\nAccounts Summary Info\n ",finalData.info(),"\n")
     #End time of program
     end_time = time.time()
@@ -307,11 +394,6 @@ def runTool():
     updateProgress("\nProgram run successful",100)
     temp_str = "-------------------Program completed-------------------------"
     writeToLog(temp_str)
-
-
-    
-
-
 
 #*************************************End of Function runTool()******************************************
 
@@ -365,6 +447,8 @@ lbl_website.grid(column=0, row=6)
 window.mainloop()
 
 #*************************************End of GUI Code******************************************
+
+
 
 # main = Tk()
 # ourMessage ='This is our Message'
