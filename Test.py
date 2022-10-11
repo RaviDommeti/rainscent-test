@@ -25,7 +25,7 @@ import datetime
 
 # https://likegeeks.com/python-gui-examples-tkinter-tutorial/
 feedback_str = []
-version_no = "T 1.0"
+version_no = "T 1.1"
 debug_flag = 1;#Custom int variable. For testing, to print statements with PRINT ,set it to 1
 
 #*******************************Function to Print Dataframes******************************************
@@ -81,16 +81,43 @@ def runTool():
     temp_str = "-------------------RUN TOOL clicked-------------------------"
     writeToLog(temp_str)
     start_time = time.time()
-    file1 =('Vendors Consolidated New.xlsx')
-    file2 =('Accounts.xlsx')
+    
+    # Create Input folder if it doesn't exist
+    input_path = 'Input'
+    if not os.path.exists(input_path):
+        os.makedirs(input_path) 
+    
+    # Create Output folder if it doesn't exist
     output_path = 'Output'
     if not os.path.exists(output_path):
         os.makedirs(output_path)
+
+    #Read Input Files
+    file1 =('Input/Vendor FINAL.xlsx')
+    file2 =('Input/PAYMENTS.xlsx')           
             
     try:
         #Concatenate from two sheets / files
         vendors_file_main = pds.read_excel(file1)
         accounts_file = pds.read_excel(file2)
+
+        #Clean files containing empty rows
+        vendors_file_main = vendors_file_main.dropna(how='all')
+        accounts_file = accounts_file.dropna(how='all')
+
+        #Clean only VENDORS containing empty columns. Dont clean Accounts as TPAID will get deleted
+        vendors_file_main = vendors_file_main.dropna(axis=1,how='all')
+        #accounts_file = accounts_file.dropna(axis=1,how='all')
+
+        # Removing spaces before and after values
+        vendors_file_main.columns = vendors_file_main.columns.str.strip()
+        accounts_file.columns = accounts_file.columns.str.strip()
+
+        if(debug_flag == 1):
+            vendors_file_main.to_excel("Output/Cleaned Vendors.xlsx")
+            accounts_file.to_excel("Output/Cleaned Accounts.xlsx")
+            printDataFrame(vendors_file_main,"Vendors File Cleaned")
+            printDataFrame(accounts_file,"Accounts File Cleaned")
 
         #Renaming column names in Vendors FINAL to match names in PAYMENTS
         vendors_file = vendors_file_main.rename(columns = {'Truck No' : 'TRUCK NO','GR Date' : 'DATE','SUP DN No':'DC NO','ACC Qty' : 'ACC.','DED Qty' : 'DED.'},inplace = False)
@@ -99,7 +126,7 @@ def runTool():
 
         #Calculate REC Qty. REC. = ACC. + DED.
         vendors_file['REC.'] = vendors_file['ACC.'] + vendors_file['DED.']
-        vendors_file.to_excel("Output/Vendor FINAL New.xlsx")
+        vendors_file.to_excel("Output/Vendors FINAL New.xlsx")
         temp_str = "New Vendors FINAL created"
         writeToLog(temp_str)
         updateProgress("\nNew Vendors FINAL created with values REC.",10)
@@ -219,15 +246,15 @@ def runTool():
     if(debug_flag == 1):
         print("\n",missing_value_file)
     
-    missing_value_file.to_excel("Output/Vendor Missing Values.xlsx")
-    temp_str = "Vendor Missing Values.xlsx created"
+    missing_value_file.to_excel("Output/Vendors Missing Values.xlsx")
+    temp_str = "Vendors Missing Values.xlsx created"
     writeToLog(temp_str)
-    updateProgress("\nFile with name Vendor Missing Values.xlsx created",30)
+    updateProgress("\nFile with name Vendors Missing Values.xlsx created",30)
 
     try:
         #Please note vendors_file now contains only rows which have values in Error column. vendors_file cannot be used for further processing
         #Create a new reference to the Vendor FINAL New(with REC calculated value) file to process the original file
-        vendors_file = pds.read_excel("Output/Vendor FINAL New.xlsx")
+        vendors_file = pds.read_excel("Output/Vendors FINAL New.xlsx")
         vendors_final_new_shape = vendors_file.shape[0]
         
     except Exception as err_msg:
@@ -268,11 +295,11 @@ def runTool():
     # when used with str.strip()
     accounts_file = accounts_file.astype({"DC NO": str})
     # Removing spaces before and after values
-    accounts_file['DATE'] = accounts_file['DATE'].str.strip()
+    #accounts_file['DATE'] = accounts_file['DATE'].str.strip()
     accounts_file['DC NO'] = accounts_file['DC NO'].str.strip()
     accounts_file['TRUCK NO'] = accounts_file['TRUCK NO'].str.strip()
     # Removing spaces in middle of values
-    accounts_file['DATE'] = accounts_file['DATE'].str.replace(" ","")
+    #accounts_file['DATE'] = accounts_file['DATE'].str.replace(" ","")
     accounts_file['DC NO'] = accounts_file['DC NO'].str.replace(" ","")
     accounts_file['TRUCK NO'] = accounts_file['TRUCK NO'].str.replace(" ","")
 
@@ -304,8 +331,14 @@ def runTool():
     #joinedData_filtered = joinedData[(joinedData['REC Difference'] > 0) & (joinedData['ACC Difference'] > 0)]
     joinedData_filtered = joinedData[((joinedData['REC Difference'] > 0) & (joinedData['ACC Difference'] > 0)) | (joinedData['REC Difference'] == 0) & (joinedData['ACC Difference'] != 0) | (joinedData['REC Difference'] != 0) & (joinedData['ACC Difference'] == 0)]
     #joinedData = joinedData[['DATE','DC NO','TRUCK NO','ACC._Vendors','ACC._Accounts','ACC Difference','REC._Vendors','REC._Accounts','REC Difference']]
-    joinedData_filtered = joinedData_filtered[['DATE','DC NO','TRUCK NO','ACC._Vendors','ACC._Accounts','ACC Difference','REC._Vendors','REC._Accounts','REC Difference']]
-    
+    #joinedData_filtered = joinedData_filtered[['DATE','DC NO','TRUCK NO','ACC._Vendors','ACC._Accounts','ACC Difference','REC._Vendors','REC._Accounts','REC Difference',]]
+    joinedData_filtered = joinedData_filtered.replace(np.nan,0)
+    joinedData_filtered['AMOUNT'] = joinedData_filtered['ACC._Accounts'] * joinedData_filtered['PRICE']
+    joinedData_filtered['GRAND TOTAL'] = joinedData_filtered['AMOUNT'] + joinedData_filtered['TAX']
+    joinedData_filtered['BALANCE'] = joinedData_filtered['GRAND TOTAL'] - (joinedData_filtered['T PAID'] + joinedData_filtered['FRT.'])
+
+    joinedData_filtered = joinedData_filtered[['DATE','DC NO','TRUCK NO','MAT.','PARTY NAME','PLACE','ACC._Vendors','ACC._Accounts','ACC Difference','REC._Vendors','REC._Accounts','REC Difference','PRICE','AMOUNT','TAX','GRAND TOTAL','T PAID','FRT.','BALANCE']]
+    printDataFrame(joinedData_filtered,"Acc Errors")
     #anti_join = accounts_remaining[~(accounts_remaining._merge == 'both')]
 
     #joinedData = joinedData.loc[(joinedData["ACC Difference"] == "All OK" and joinedData["ACC Difference"] == "All OK") ]
@@ -378,10 +411,15 @@ def runTool():
     finalData['GRAND TOTAL'] = finalData['AMOUNT'] + finalData['TAX']
     finalData['BALANCE'] = finalData['GRAND TOTAL'] - (finalData['T PAID'] + finalData['FRT.'])
 
-    finalData.to_excel("Output/Account Summary.xlsx")
-    temp_str = "Account Summary.xlsx created"
+    finalData = finalData.rename(columns = {'_merge' : 'Remaining in'},inplace = False)
+    finalData = finalData[['DATE','DC NO','TRUCK NO','MAT.','PARTY NAME','PLACE','REC.','ACC.','PRICE','AMOUNT','TAX','GRAND TOTAL','T PAID','FRT.','BALANCE']]
+    
+        
+    finalData.to_excel("Output/Accounts Summary.xlsx")
+    temp_str = "Accounts Summary.xlsx created"
     writeToLog(temp_str) 
-    updateProgress("\nFile with name Account Summary.xlsx is created",100)
+    updateProgress("\nFile with name Accounts Summary.xlsx is created",100)
+
     
     if(debug_flag == 1):
         printDataFrame(finalData,"Accounts Summary Before Calculation")
@@ -393,6 +431,37 @@ def runTool():
 
     updateProgress("\nProgram run successful",100)
     temp_str = "-------------------Program completed-------------------------"
+    writeToLog(temp_str)
+
+    sum_balance_accounts_summary = finalData['BALANCE'].sum()
+    sum_balance_accounts_remaining = anti_join['BALANCE'].sum()
+    sum_balance_acc_errors = joinedData_filtered['BALANCE'].sum()
+    sum_balance = sum_balance_accounts_summary + sum_balance_accounts_remaining + sum_balance_acc_errors
+    sum_balance_acc_errors = "{:.2f}".format(sum_balance_acc_errors)
+    sum_balance_accounts_summary = "{:.2f}".format(finalData['BALANCE'].sum())
+    sum_balance_accounts_remaining = "{:.2f}".format(anti_join['BALANCE'].sum())
+    sum_balance = "{:.2f}".format(sum_balance)
+
+    msg = "\n................................."
+    msg = msg + "\nSummary of the Tool Execution"
+    msg = msg + "\nNumber of Records in Vendors FINAL: "+str(vendors_file_main.shape[0])
+    msg = msg + "\nNumber of Records in Vendor Missing Values: "+str(missing_value_file.shape[0])
+    msg = msg + "\nNumber of Records in Accounts: "+str(accounts_file.shape[0])
+    msg = msg + "\nNumber of Records in Accounts Errors: "+str(joinedData_filtered.shape[0])
+    msg = msg + "\nNumber of Records in Accounts Summary: "+str(finalData.shape[0])
+    msg = msg + "\nNumber of Records in Accounts Remaining: "+str(anti_join.shape[0])
+    msg = msg + "\nPlease note Accounts Remaining doesnt contain records of Accounts Errors"
+    msg = msg + "\n................................."
+    msg = msg + "\nTotal Balance of Accounts Summary: "+sum_balance_accounts_summary
+    msg = msg + "\nTotal Balance of Accounts Remaining: "+sum_balance_accounts_remaining
+    msg = msg + "\nTotal Balance of Accounts Errors: "+sum_balance_acc_errors
+    msg = msg + "\nBalance of Accounts Remaining + Summary + Errors: "+sum_balance
+    # msg = msg + "\n................................."
+    # msg = msg + "\nBalance of Accounts: "+str("{:.2f}".format(accounts_file['BALANCE'].sum()))
+    
+    #displayMessage("SUMMARY",msg)
+    updateProgress(msg,100)
+    temp_str = msg
     writeToLog(temp_str)
 
 #*************************************End of Function runTool()******************************************
