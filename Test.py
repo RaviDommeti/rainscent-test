@@ -92,6 +92,11 @@ def runTool():
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    # Create Output folder if it doesn't exist
+    data_path = 'Output/Data'
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
+
     #Read Input Files
     file1 =('Input/Vendor FINAL.xlsx')
     file2 =('Input/PAYMENTS.xlsx')           
@@ -114,8 +119,8 @@ def runTool():
         accounts_file.columns = accounts_file.columns.str.strip()
 
         if(debug_flag == 1):
-            vendors_file_main.to_excel("Output/Cleaned Vendors.xlsx")
-            accounts_file.to_excel("Output/Cleaned Accounts.xlsx")
+            vendors_file_main.to_excel("Output/Data/Cleaned Vendors.xlsx")
+            accounts_file.to_excel("Output/Data/Cleaned Accounts.xlsx")
             printDataFrame(vendors_file_main,"Vendors File Cleaned")
             printDataFrame(accounts_file,"Accounts File Cleaned")
 
@@ -126,7 +131,7 @@ def runTool():
 
         #Calculate REC Qty. REC. = ACC. + DED.
         vendors_file['REC.'] = vendors_file['ACC.'] + vendors_file['DED.']
-        vendors_file.to_excel("Output/Vendors FINAL New.xlsx")
+        vendors_file.to_excel("Output/Data/Vendors FINAL New.xlsx")
         temp_str = "New Vendors FINAL created"
         writeToLog(temp_str)
         updateProgress("\nNew Vendors FINAL created with values REC.",10)
@@ -254,7 +259,7 @@ def runTool():
     try:
         #Please note vendors_file now contains only rows which have values in Error column. vendors_file cannot be used for further processing
         #Create a new reference to the Vendor FINAL New(with REC calculated value) file to process the original file
-        vendors_file = pds.read_excel("Output/Vendors FINAL New.xlsx")
+        vendors_file = pds.read_excel("Output/Data/Vendors FINAL New.xlsx")
         vendors_final_new_shape = vendors_file.shape[0]
         
     except Exception as err_msg:
@@ -496,7 +501,7 @@ bar.grid(column=0, row=3)
 run_feedback = Label(window, text=" ", font=("Arial Bold", 15,))
 run_feedback.grid(column=0, row=4,padx=15)
 working_dir = os.getcwd()
-location = "Put input files in location: "+working_dir
+location = "Put input files in location: "+working_dir+"/Input"
 updateProgress(location,0)
 
 lbl_company_name = Label(window, text="Tool developed by Rainscent Tech Pvt. Ltd. ", font=("Arial Bold", 15,))
