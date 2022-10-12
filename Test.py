@@ -106,6 +106,12 @@ def runTool():
         vendors_file_main = pds.read_excel(file1)
         accounts_file = pds.read_excel(file2)
 
+        vendors_file_main_cols = list(vendors_file_main.columns)
+        accounts_file_cols = list(accounts_file.columns)
+        temp_str = "\nVendors File columns list is: "+str(vendors_file_main_cols)
+        temp_str = temp_str + "\nAccount File columns list is: "+str(accounts_file_cols)
+        writeToLog(temp_str)
+
         #Clean files containing empty rows
         vendors_file_main = vendors_file_main.dropna(how='all')
         accounts_file = accounts_file.dropna(how='all')
