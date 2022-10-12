@@ -50,7 +50,7 @@ def doesColumnExists(d_frame, col):
 
 #*********************************Defintion of Log function*********************************
 def writeToLog(message):
-    f = open("log.txt", "a")
+    f = open("Output/Data/log.txt", "a")
     # ct stores current time
     ct = datetime.datetime.now()
     print("at ", ct,file=f)
@@ -76,12 +76,6 @@ def updateProgress(message_update,bar_value):
 def runTool():
     # get the start time of program
 
-    temp_str = "-------------------Version "+version_no+" (TRIAL VERSION)-------------------------"
-    writeToLog(temp_str)
-    temp_str = "-------------------RUN TOOL clicked-------------------------"
-    writeToLog(temp_str)
-    start_time = time.time()
-    
     # Create Input folder if it doesn't exist
     input_path = 'Input'
     if not os.path.exists(input_path):
@@ -96,6 +90,12 @@ def runTool():
     data_path = 'Output/Data'
     if not os.path.exists(data_path):
         os.makedirs(data_path)
+
+    temp_str = "-------------------Version "+version_no+" (TRIAL VERSION)-------------------------"
+    writeToLog(temp_str)
+    temp_str = "-------------------RUN TOOL clicked-------------------------"
+    writeToLog(temp_str)
+    start_time = time.time()
 
     #Read Input Files
     file1 =('Input/Vendor FINAL.xlsx')
