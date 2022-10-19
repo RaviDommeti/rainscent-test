@@ -516,9 +516,9 @@ window = Tk()
 window.title("Rainscent Tech XcelWorks")
 window.geometry('800x800') # Width X Height
 
-lbl = Label(window, text="Welcome to RS XcelWorks™", font=("Arial Bold", 25,))
+lbl = Label(window, text="Welcome to RS XcelWorks", font=("Arial Bold", 25,))
 lbl.grid(column=0, row=0)
-
+#Welcome to RS XcelWorks™
 text_str = "Version: "+version_no+"\n"
 lbl_version = Label(window, text=text_str, font=("Arial", 12))
 lbl_version.grid(column=0, row=1)
