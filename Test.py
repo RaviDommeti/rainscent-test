@@ -25,8 +25,26 @@ import datetime
 
 # https://likegeeks.com/python-gui-examples-tkinter-tutorial/
 feedback_str = []
-version_no = "T 1.1"
-debug_flag = 1;#Custom int variable. For testing, to print statements with PRINT ,set it to 1
+version_no = "T 1.2"
+debug_flag = 0;#Custom int variable. For testing, to print statements with PRINT ,set it to 1
+
+#*******************************Function to create Directories******************************************
+def createDirs():
+    # Create Input folder if it doesn't exist
+    input_path = 'Input'
+    if not os.path.exists(input_path):
+        os.makedirs(input_path) 
+    
+    # Create Output folder if it doesn't exist
+    output_path = 'Output'
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    # Create Output folder if it doesn't exist
+    data_path = 'Output/Data'
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
+
 
 #*******************************Function to Print Dataframes******************************************
 def printDataFrame(dataframe, dataframe_name):
@@ -74,43 +92,46 @@ def updateProgress(message_update,bar_value):
 
 #*************************************Beginning of Function runTool()******************************************
 def runTool():
-    # get the start time of program
 
-    # Create Input folder if it doesn't exist
-    input_path = 'Input'
-    if not os.path.exists(input_path):
-        os.makedirs(input_path) 
-    
-    # Create Output folder if it doesn't exist
-    output_path = 'Output'
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-
-    # Create Output folder if it doesn't exist
-    data_path = 'Output/Data'
-    if not os.path.exists(data_path):
-        os.makedirs(data_path)
+    #Create Input / Output / Data directories if not created
+    createDirs()
 
     temp_str = "-------------------Version "+version_no+" (TRIAL VERSION)-------------------------"
     writeToLog(temp_str)
     temp_str = "-------------------RUN TOOL clicked-------------------------"
     writeToLog(temp_str)
+
     start_time = time.time()
 
     #Read Input Files
+    # file1 =('Input/Vendor FINAL.xlsx')
+    # file2 =('Input/PAYMENTS.xlsx')
     file1 =('Input/Vendor FINAL.xlsx')
-    file2 =('Input/PAYMENTS.xlsx')           
+    file2 =('Input/PAYMENTS.xlsx')            
             
     try:
-        #Concatenate from two sheets / files
+        #Read files
         vendors_file_main = pds.read_excel(file1)
         accounts_file = pds.read_excel(file2)
 
+        # Creating list of columns of Vendor FINAL
         vendors_file_main_cols = list(vendors_file_main.columns)
         accounts_file_cols = list(accounts_file.columns)
         temp_str = "\nVendors File columns list is: "+str(vendors_file_main_cols)
         temp_str = temp_str + "\nAccount File columns list is: "+str(accounts_file_cols)
         writeToLog(temp_str)
+
+        print("\nVendors File Main Cols. \n",vendors_file_main_cols)
+
+        #Fill empty columns which are not essential with null values
+        vendors_file_main['DN Date'] = vendors_file_main['DN Date'].fillna("Blank")
+        vendors_file_main['Purchase Order'] = vendors_file_main['Purchase Order'].fillna("Blank")
+        vendors_file_main['DN Number'] = vendors_file_main['DN Number'].fillna("Blank")
+        vendors_file_main['GR Number'] = vendors_file_main['GR Number'].fillna("Blank")
+        vendors_file_main['vendor'] = vendors_file_main['vendor'].fillna("Blank")
+        vendors_file_main['Bag Weight'] = vendors_file_main['Bag Weight'].fillna("Blank")
+
+        #vendors_file_main.to_excel("Output/v_f_m.xlsx")
 
         #Clean files containing empty rows
         vendors_file_main = vendors_file_main.dropna(how='all')
@@ -123,10 +144,12 @@ def runTool():
         # Removing spaces before and after values
         vendors_file_main.columns = vendors_file_main.columns.str.strip()
         accounts_file.columns = accounts_file.columns.str.strip()
+        vendors_file_main.to_excel("Output/Data/Cleaned Vendors.xlsx")
+        accounts_file.to_excel("Output/Data/Cleaned Accounts.xlsx")
 
         if(debug_flag == 1):
-            vendors_file_main.to_excel("Output/Data/Cleaned Vendors.xlsx")
-            accounts_file.to_excel("Output/Data/Cleaned Accounts.xlsx")
+            # vendors_file_main.to_excel("Output/Data/Cleaned Vendors.xlsx")
+            # accounts_file.to_excel("Output/Data/Cleaned Accounts.xlsx")
             printDataFrame(vendors_file_main,"Vendors File Cleaned")
             printDataFrame(accounts_file,"Accounts File Cleaned")
 
@@ -137,6 +160,7 @@ def runTool():
 
         #Calculate REC Qty. REC. = ACC. + DED.
         vendors_file['REC.'] = vendors_file['ACC.'] + vendors_file['DED.']
+        #Create Vendors FINAL New with calc. REC and cleaned
         vendors_file.to_excel("Output/Data/Vendors FINAL New.xlsx")
         temp_str = "New Vendors FINAL created"
         writeToLog(temp_str)
@@ -172,7 +196,7 @@ def runTool():
             displayMessage("Error",temp_str)
             return
         
-        joinedData = pds.concat([vendors_file, accounts_file])
+        #joinedData = pds.concat([vendors_file, accounts_file])
         temp_str = "Input files read successfully"
         writeToLog(temp_str)
         updateProgress("\nReading both input files completed",10)
@@ -186,8 +210,11 @@ def runTool():
     if(debug_flag == 1):
         print("\n Size of Vendors File: ",vendors_file.shape," with Rows: ",vendors_file.shape[0]," Columns: ",vendors_file.shape[1])
     
+    #**************************** ---------------------********************    
+    #df['DataFrame Column'] = df['DataFrame Column'].fillna(0)
     # Find rows and columns with null values
     result_error = np.where(pds.isnull(vendors_file))
+    
     #feedback_str.append("\nRows with empty or blank values identified")
     temp_str = "\n Error in Rows: "+ str(result_error[0])+"\nError in Columns:  "+str(result_error[1])
     writeToLog(temp_str)
@@ -253,6 +280,7 @@ def runTool():
 
 
     missing_value_file = dup_vendors_file
+    #Deleting rows which doesnt have any errors, i.e Errors column is empty
     missing_value_file.drop(missing_value_file[missing_value_file['Errors'] == ""].index, inplace = True)
     if(debug_flag == 1):
         print("\n",missing_value_file)
@@ -348,8 +376,11 @@ def runTool():
     joinedData_filtered['GRAND TOTAL'] = joinedData_filtered['AMOUNT'] + joinedData_filtered['TAX']
     joinedData_filtered['BALANCE'] = joinedData_filtered['GRAND TOTAL'] - (joinedData_filtered['T PAID'] + joinedData_filtered['FRT.'])
 
+    #printDataFrame(joinedData_filtered, "Acc Errors")
+    #joinedData_filtered.to_excel("Output/Account Errors Temp.xlsx")
     joinedData_filtered = joinedData_filtered[['DATE','DC NO','TRUCK NO','MAT.','PARTY NAME','PLACE','ACC._Vendors','ACC._Accounts','ACC Difference','REC._Vendors','REC._Accounts','REC Difference','PRICE','AMOUNT','TAX','GRAND TOTAL','T PAID','FRT.','BALANCE']]
-    printDataFrame(joinedData_filtered,"Acc Errors")
+    if(debug_flag == 1):
+        printDataFrame(joinedData_filtered,"Acc Errors")    
     #anti_join = accounts_remaining[~(accounts_remaining._merge == 'both')]
 
     #joinedData = joinedData.loc[(joinedData["ACC Difference"] == "All OK" and joinedData["ACC Difference"] == "All OK") ]
@@ -378,8 +409,9 @@ def runTool():
                 'REC.': float
                 }
         accounts_file = accounts_file.astype(convert_dict)
-        printDataFrame(vendors_file,"Vendors File")
-        printDataFrame(accounts_file,"Accounts File")
+        if(debug_flag == 1):
+            printDataFrame(vendors_file,"Vendors File")
+            printDataFrame(accounts_file,"Accounts File")        
         
         finalData = vendors_file.merge(accounts_file, how="inner", on=['DC NO','TRUCK NO','DATE','REC.','ACC.'])
         finalData = finalData.replace(np.nan,0)
@@ -481,10 +513,10 @@ def runTool():
 #*************************************GUI Code******************************************
 
 window = Tk()
-window.title("ExcelBuddy")
-window.geometry('500x500') # Width X Height
+window.title("Rainscent Tech XcelWorks")
+window.geometry('800x800') # Width X Height
 
-lbl = Label(window, text="Welcome to ExcelBuddy", font=("Arial Bold", 25,))
+lbl = Label(window, text="Welcome to RS XcelWorks™", font=("Arial Bold", 25,))
 lbl.grid(column=0, row=0)
 
 text_str = "Version: "+version_no+"\n"
